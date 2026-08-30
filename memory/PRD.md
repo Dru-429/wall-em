@@ -50,6 +50,9 @@ Pinterest-style theme (warm-cream chrome, single red #e60023 accent).
   download to gallery. Photo/gallery permissions handled per contract (contextual +
   Open Settings fallback).
 - Verified end-to-end by testing agent (iteration_2: PASS).
+- Editor extras (2026-06): per-image X delete on bucket tiles; Shuffle (scatter +
+  ±15° rotation covering the page); Reset (clear canvas); Add-image sheet to re-add
+  individual bucket images; Rotate step changed to 15° increments.
 
 ## Backlog
 - P0: `+ Widgets` section — Progress bar & Year dot-matrix widgets that render to a

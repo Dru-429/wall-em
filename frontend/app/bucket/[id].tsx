@@ -108,6 +108,13 @@ export default function BucketScreen() {
     toast("Image removed", "success");
   };
 
+  const removeImage = async (img: ImageAsset) => {
+    if (!id) return;
+    const updated = await removeImageFromBucket(id, img.id);
+    if (updated) setBucket(updated);
+    toast("Image removed", "success");
+  };
+
   const hasImages = (bucket?.images.length || 0) > 0;
 
   return (
@@ -141,6 +148,7 @@ export default function BucketScreen() {
               from={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: "timing", duration: 220, delay: i * 25 }}
+              style={{ width: TILE, height: TILE }}
             >
               <Pressable
                 style={[styles.tile, { width: TILE, height: TILE }]}
@@ -152,6 +160,14 @@ export default function BucketScreen() {
                   style={StyleSheet.absoluteFill}
                   contentFit="cover"
                 />
+              </Pressable>
+              <Pressable
+                style={styles.removeBadge}
+                hitSlop={8}
+                onPress={() => removeImage(img)}
+                testID={`remove-image-${img.id}`}
+              >
+                <Ionicons name="close" size={16} color={colors.onDark} />
               </Pressable>
             </MotiView>
           ))}
@@ -261,6 +277,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     overflow: "hidden",
     backgroundColor: colors.surfaceCard,
+  },
+  removeBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    backgroundColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.surfaceSoft,
   },
   uploadTile: {
     alignItems: "center",

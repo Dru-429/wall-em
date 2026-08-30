@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +27,7 @@ import {
   Bucket,
   CanvasItem,
   getBucket,
+  ImageAsset,
   saveLayout,
   uid,
 } from "@/src/store/buckets";
@@ -57,6 +59,7 @@ export default function Editor() {
 
   const [bgOpen, setBgOpen] = useState(false);
   const [textOpen, setTextOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [draftText, setDraftText] = useState("");
   const [draftColor, setDraftColor] = useState(TEXT_COLORS[0]);
   const [busy, setBusy] = useState(false);
@@ -153,9 +156,11 @@ export default function Editor() {
     onChange(selected.id, { z: minZ - 1 });
     reflow();
   };
-  const rotate90 = () => {
+  const rotate15 = () => {
     if (!selected) return;
-    onChange(selected.id, { rotation: (selected.rotation || 0) + Math.PI / 2 });
+    onChange(selected.id, {
+      rotation: (selected.rotation || 0) + Math.PI / 12,
+    });
     reflow();
   };
   const duplicate = () => {
@@ -175,6 +180,70 @@ export default function Editor() {
     if (!selected) return;
     setItems((prev) => prev.filter((it) => it.id !== selected.id));
     setSelectedId(null);
+  };
+
+  // Scatter every bucket image across the whole canvas, overlapping, with a
+  // small random rotation — a "cover the page" collage.
+  const shuffle = () => {
+    if (!bucket) return;
+    const shuffled = [...bucket.images].sort(() => Math.random() - 0.5);
+    const imageItems: CanvasItem[] = shuffled.map((im, i) => {
+      const ratio = im.width / im.height;
+      const w = canvasW * (0.42 + Math.random() * 0.33);
+      const h = w / ratio;
+      // Allow tiles to spill past the edges so the whole page gets covered.
+      const x = Math.random() * (canvasW - w * 0.45) - w * 0.3;
+      const y = Math.random() * (canvasH - h * 0.45) - h * 0.3;
+      const rotation = (Math.random() - 0.5) * (Math.PI / 6); // +/- 15deg
+      return {
+        id: im.id,
+        kind: "image",
+        uri: im.uri,
+        x,
+        y,
+        width: w,
+        height: h,
+        rotation,
+        z: i,
+      };
+    });
+    const texts = items
+      .filter((it) => it.kind === "text")
+      .map((t, i) => ({ ...t, z: imageItems.length + i }));
+    setItems([...imageItems, ...texts]);
+    setSelectedId(null);
+    reflow();
+    toast("Shuffled", "success");
+  };
+
+  // Clear the whole canvas so images can be re-added as needed.
+  const resetCanvas = () => {
+    setItems([]);
+    setSelectedId(null);
+    reflow();
+    toast("Wallpaper reset", "success");
+  };
+
+  // Add a single bucket image to the canvas at its natural aspect ratio.
+  const addImageToCanvas = (im: ImageAsset) => {
+    const ratio = im.width / im.height;
+    const w = canvasW * 0.55;
+    const h = w / ratio;
+    const maxZ = items.length ? Math.max(...items.map((it) => it.z)) : 0;
+    const item: CanvasItem = {
+      id: uid(),
+      kind: "image",
+      uri: im.uri,
+      x: (canvasW - w) / 2,
+      y: (canvasH - h) / 2,
+      width: w,
+      height: h,
+      rotation: 0,
+      z: maxZ + 1,
+    };
+    setItems((prev) => [...prev, item]);
+    setAddOpen(false);
+    toast("Image added", "success");
   };
 
   const addText = () => {
@@ -337,7 +406,7 @@ export default function Editor() {
           >
             <Tool icon="arrow-up" label="Forward" onPress={bringForward} tid="forward" />
             <Tool icon="arrow-down" label="Backward" onPress={sendBackward} tid="backward" />
-            <Tool icon="refresh" label="Rotate" onPress={rotate90} tid="rotate" />
+            <Tool icon="refresh" label="Rotate 15°" onPress={rotate15} tid="rotate" />
             <Tool icon="copy-outline" label="Duplicate" onPress={duplicate} tid="duplicate" />
             <Tool
               icon="trash-outline"
@@ -361,6 +430,13 @@ export default function Editor() {
             testID="canvas-toolbar"
           >
             <Tool icon="grid" label="Mosaic" onPress={() => arrange("mosaic")} tid="mosaic" />
+            <Tool icon="shuffle" label="Shuffle" onPress={shuffle} tid="shuffle" />
+            <Tool
+              icon="add-circle-outline"
+              label="Add image"
+              onPress={() => setAddOpen(true)}
+              tid="add-image"
+            />
             <Tool
               icon="chevron-back"
               label="Left"
@@ -390,6 +466,13 @@ export default function Editor() {
               label="Add text"
               onPress={() => setTextOpen(true)}
               tid="add-text"
+            />
+            <Tool
+              icon="trash-outline"
+              label="Reset"
+              onPress={resetCanvas}
+              tid="reset"
+              danger
             />
           </ScrollView>
         )}
@@ -458,6 +541,35 @@ export default function Editor() {
         >
           <Text style={styles.primaryBtnText}>Add</Text>
         </Pressable>
+      </BottomSheet>
+
+      {/* Add image from bucket */}
+      <BottomSheet visible={addOpen} onClose={() => setAddOpen(false)} testID="add-image-sheet">
+        <Text style={styles.sheetTitle}>Add Image</Text>
+        {bucket && bucket.images.length > 0 ? (
+          <ScrollView
+            style={{ maxHeight: 360 }}
+            contentContainerStyle={styles.addGrid}
+            showsVerticalScrollIndicator={false}
+          >
+            {bucket.images.map((im) => (
+              <Pressable
+                key={im.id}
+                style={styles.addThumb}
+                onPress={() => addImageToCanvas(im)}
+                testID={`add-image-${im.id}`}
+              >
+                <ExpoImage
+                  source={{ uri: im.uri }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                />
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : (
+          <Text style={styles.permBody}>This bucket has no images.</Text>
+        )}
       </BottomSheet>
 
       {/* Permission blocked */}
@@ -629,4 +741,17 @@ const styles = StyleSheet.create({
   primaryBtnText: { ...type.button, color: colors.onPrimary, fontSize: 16 },
   btnDisabled: { backgroundColor: colors.stone },
   permBody: { ...type.bodyMd, color: colors.mute, marginBottom: spacing.lg },
+  addGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  addThumb: {
+    width: 88,
+    height: 88,
+    borderRadius: radius.sm,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceCard,
+  },
 });
