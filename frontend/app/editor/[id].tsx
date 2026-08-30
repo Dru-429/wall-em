@@ -60,6 +60,7 @@ export default function Editor() {
   const [bgOpen, setBgOpen] = useState(false);
   const [textOpen, setTextOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [draftText, setDraftText] = useState("");
   const [draftColor, setDraftColor] = useState(TEXT_COLORS[0]);
   const [busy, setBusy] = useState(false);
@@ -249,6 +250,7 @@ export default function Editor() {
     setItems([]);
     setSelectedId(null);
     reflow();
+    setResetOpen(false);
     toast("Wallpaper reset", "success");
   };
 
@@ -498,7 +500,7 @@ export default function Editor() {
             <Tool
               icon="trash-outline"
               label="Reset"
-              onPress={resetCanvas}
+              onPress={() => setResetOpen(true)}
               tid="reset"
               danger
             />
@@ -598,6 +600,28 @@ export default function Editor() {
         ) : (
           <Text style={styles.permBody}>This bucket has no images.</Text>
         )}
+      </BottomSheet>
+
+      {/* Reset confirmation */}
+      <BottomSheet visible={resetOpen} onClose={() => setResetOpen(false)} testID="reset-sheet">
+        <Text style={styles.sheetTitle}>Reset wallpaper?</Text>
+        <Text style={styles.permBody}>
+          This will remove all the images from this wallpaper. This can’t be undone.
+        </Text>
+        <Pressable
+          style={[styles.primaryBtn, { backgroundColor: colors.error }]}
+          onPress={resetCanvas}
+          testID="confirm-reset"
+        >
+          <Text style={styles.primaryBtnText}>Yes, reset</Text>
+        </Pressable>
+        <Pressable
+          style={styles.cancelBtn}
+          onPress={() => setResetOpen(false)}
+          testID="cancel-reset"
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
       </BottomSheet>
 
       {/* Permission blocked */}
@@ -769,6 +793,13 @@ const styles = StyleSheet.create({
   primaryBtnText: { ...type.button, color: colors.onPrimary, fontSize: 16 },
   btnDisabled: { backgroundColor: colors.stone },
   permBody: { ...type.bodyMd, color: colors.mute, marginBottom: spacing.lg },
+  cancelBtn: {
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.sm,
+  },
+  cancelText: { ...type.button, color: colors.ink, fontSize: 16 },
   addGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
