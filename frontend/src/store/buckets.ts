@@ -16,7 +16,7 @@ export type ImageAsset = {
 
 export type CanvasItem = {
   id: string;
-  kind: "image" | "text";
+  kind: "image" | "text" | "widget";
   x: number;
   y: number;
   width: number;
@@ -29,6 +29,8 @@ export type CanvasItem = {
   text?: string;
   color?: string;
   fontSize?: number;
+  // widget
+  widget?: "progress" | "dotmatrix";
 };
 
 export type EditorState = {

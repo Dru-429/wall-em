@@ -21,6 +21,7 @@ import { scheduleOnRN } from "react-native-worklets";
 
 import { BottomSheet } from "@/src/components/BottomSheet";
 import CanvasItemView from "@/src/components/editor/CanvasItem";
+import { Widget } from "@/src/components/editor/Widget";
 import { useToast } from "@/src/components/Toast";
 import { Align, mosaicAligned, mosaicFullBleed } from "@/src/lib/mosaic";
 import {
@@ -42,6 +43,13 @@ import {
 
 const PHONE_RATIO = 1080 / 2340; // ~0.4615
 
+const EMOJIS = [
+  "🔥", "⭐", "✨", "💥", "❤️", "🧡", "💛", "💚", "💙", "💜",
+  "🖤", "🤍", "😎", "🥹", "🤯", "😤", "💀", "👀", "🙌", "💪",
+  "🚀", "🎯", "🏆", "💎", "⚡", "🌙", "☀️", "🌈", "🍀", "🌸",
+  "🎵", "📈", "💰", "🧠", "👑", "✅", "❌", "➡️", "⬆️", "♾️",
+];
+
 export default function Editor() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -61,6 +69,8 @@ export default function Editor() {
   const [textOpen, setTextOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [widgetsOpen, setWidgetsOpen] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [draftText, setDraftText] = useState("");
   const [draftColor, setDraftColor] = useState(TEXT_COLORS[0]);
   const [busy, setBusy] = useState(false);
@@ -274,6 +284,52 @@ export default function Editor() {
     setItems((prev) => [...prev, item]);
     setAddOpen(false);
     toast("Image added", "success");
+  };
+
+  // Add a live year widget (progress bar or dot matrix) to the canvas.
+  const addWidget = (variant: "progress" | "dotmatrix") => {
+    const maxZ = items.length ? Math.max(...items.map((it) => it.z)) : 0;
+    const w = variant === "progress" ? canvasW * 0.74 : canvasW * 0.62;
+    const h = variant === "progress" ? canvasH * 0.11 : canvasW * 0.62;
+    const item: CanvasItem = {
+      id: uid(),
+      kind: "widget",
+      widget: variant,
+      color: "#ffffff",
+      x: (canvasW - w) / 2,
+      y: variant === "progress" ? canvasH * 0.08 : (canvasH - h) / 2,
+      width: w,
+      height: h,
+      rotation: 0,
+      z: maxZ + 1,
+    };
+    setItems((prev) => [...prev, item]);
+    setWidgetsOpen(false);
+    setSelectedId(item.id);
+    reflow();
+    toast("Widget added", "success");
+  };
+
+  // Add an emoji sticker (rendered as a text layer) to the canvas.
+  const addEmoji = (emoji: string) => {
+    const maxZ = items.length ? Math.max(...items.map((it) => it.z)) : 0;
+    const s = canvasW * 0.24;
+    const item: CanvasItem = {
+      id: uid(),
+      kind: "text",
+      text: emoji,
+      color: "#ffffff",
+      fontSize: Math.round(s * 0.8),
+      x: (canvasW - s) / 2,
+      y: (canvasH - s) / 2,
+      width: s,
+      height: s,
+      rotation: 0,
+      z: maxZ + 1,
+    };
+    setItems((prev) => [...prev, item]);
+    setEmojiOpen(false);
+    toast("Emoji added", "success");
   };
 
   const addText = () => {
@@ -498,6 +554,18 @@ export default function Editor() {
               tid="add-text"
             />
             <Tool
+              icon="happy-outline"
+              label="Emoji"
+              onPress={() => setEmojiOpen(true)}
+              tid="emoji"
+            />
+            <Tool
+              icon="stats-chart"
+              label="Widgets"
+              onPress={() => setWidgetsOpen(true)}
+              tid="widgets"
+            />
+            <Tool
               icon="trash-outline"
               label="Reset"
               onPress={() => setResetOpen(true)}
@@ -600,6 +668,61 @@ export default function Editor() {
         ) : (
           <Text style={styles.permBody}>This bucket has no images.</Text>
         )}
+      </BottomSheet>
+
+      {/* Widgets */}
+      <BottomSheet visible={widgetsOpen} onClose={() => setWidgetsOpen(false)} testID="widgets-sheet">
+        <Text style={styles.sheetTitle}>Live Widgets</Text>
+        <Text style={styles.permBody}>
+          Auto-updating widgets that track this year’s progress.
+        </Text>
+        <Pressable
+          style={styles.widgetCard}
+          onPress={() => addWidget("progress")}
+          testID="widget-progress"
+        >
+          <View style={styles.widgetPreview}>
+            <Widget variant="progress" tint="#ffffff" />
+          </View>
+          <View style={styles.widgetMeta}>
+            <Text style={styles.widgetName}>Year Progress Bar</Text>
+            <Text style={styles.widgetDesc}>Shows how much of the year is done</Text>
+          </View>
+        </Pressable>
+        <Pressable
+          style={styles.widgetCard}
+          onPress={() => addWidget("dotmatrix")}
+          testID="widget-dotmatrix"
+        >
+          <View style={styles.widgetPreviewSquare}>
+            <Widget variant="dotmatrix" tint="#ffffff" />
+          </View>
+          <View style={styles.widgetMeta}>
+            <Text style={styles.widgetName}>Year Dot Matrix</Text>
+            <Text style={styles.widgetDesc}>One dot per day, bright = elapsed</Text>
+          </View>
+        </Pressable>
+      </BottomSheet>
+
+      {/* Emoji picker */}
+      <BottomSheet visible={emojiOpen} onClose={() => setEmojiOpen(false)} testID="emoji-sheet">
+        <Text style={styles.sheetTitle}>Add Emoji</Text>
+        <ScrollView
+          style={{ maxHeight: 320 }}
+          contentContainerStyle={styles.emojiGrid}
+          showsVerticalScrollIndicator={false}
+        >
+          {EMOJIS.map((e) => (
+            <Pressable
+              key={e}
+              style={styles.emojiCell}
+              onPress={() => addEmoji(e)}
+              testID={`emoji-${e}`}
+            >
+              <Text style={styles.emojiChar}>{e}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </BottomSheet>
 
       {/* Reset confirmation */}
@@ -813,4 +936,40 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: colors.surfaceCard,
   },
+  widgetCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    backgroundColor: colors.surfaceDark,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  widgetPreview: {
+    width: 120,
+    height: 56,
+    justifyContent: "center",
+  },
+  widgetPreviewSquare: {
+    width: 72,
+    height: 72,
+  },
+  widgetMeta: { flex: 1 },
+  widgetName: { ...type.bodyStrong, color: colors.onDark },
+  widgetDesc: { ...type.bodySm, color: colors.onDarkMute, marginTop: 2 },
+  emojiGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    paddingBottom: spacing.md,
+  },
+  emojiCell: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceCard,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emojiChar: { fontSize: 30 },
 });

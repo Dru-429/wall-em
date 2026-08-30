@@ -16,6 +16,7 @@ import { scheduleOnRN } from "react-native-worklets";
 
 import { CanvasItem } from "@/src/store/buckets";
 import { colors } from "@/src/theme";
+import { Widget } from "@/src/components/editor/Widget";
 
 type Props = {
   item: CanvasItem;
@@ -128,6 +129,8 @@ function CanvasLayer({ item, selected, onSelect, onChange }: Props) {
             contentFit="fill"
             transition={0}
           />
+        ) : item.kind === "widget" ? (
+          <Widget variant={item.widget || "progress"} tint={item.color || "#ffffff"} />
         ) : (
           <Text
             style={[
