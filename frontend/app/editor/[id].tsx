@@ -182,31 +182,59 @@ export default function Editor() {
     setSelectedId(null);
   };
 
-  // Scatter every bucket image across the whole canvas, overlapping, with a
-  // small random rotation — a "cover the page" collage.
+  // Scatter images across the WHOLE page so no gaps remain — a packed sticker
+  // collage. Images are placed on a jittered grid, oversized to cover each cell
+  // (even when rotated) and overlap neighbours, with small random rotations.
   const shuffle = () => {
-    if (!bucket) return;
-    const shuffled = [...bucket.images].sort(() => Math.random() - 0.5);
-    const imageItems: CanvasItem[] = shuffled.map((im, i) => {
-      const ratio = im.width / im.height;
-      const w = canvasW * (0.42 + Math.random() * 0.33);
-      const h = w / ratio;
-      // Allow tiles to spill past the edges so the whole page gets covered.
-      const x = Math.random() * (canvasW - w * 0.45) - w * 0.3;
-      const y = Math.random() * (canvasH - h * 0.45) - h * 0.3;
-      const rotation = (Math.random() - 0.5) * (Math.PI / 6); // +/- 15deg
-      return {
-        id: im.id,
-        kind: "image",
-        uri: im.uri,
-        x,
-        y,
-        width: w,
-        height: h,
-        rotation,
-        z: i,
-      };
-    });
+    if (!bucket || bucket.images.length === 0) return;
+    const pool = [...bucket.images].sort(() => Math.random() - 0.5);
+
+    const cols = bucket.images.length <= 3 ? 2 : 3;
+    const cellW = canvasW / cols;
+    const rows = Math.max(2, Math.round(canvasH / cellW));
+    const cellH = canvasH / rows;
+    const cellDiag = Math.hypot(cellW, cellH);
+
+    const imageItems: CanvasItem[] = [];
+    let idx = 0;
+    let z = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const im = pool[idx % pool.length];
+        idx++;
+        const ratio = im.width / im.height;
+        // Cover the cell fully (overscan) so rotation never exposes a gap.
+        const cover = cellDiag * 1.12;
+        let iw: number;
+        let ih: number;
+        if (ratio >= 1) {
+          ih = cover;
+          iw = cover * ratio;
+        } else {
+          iw = cover;
+          ih = cover / ratio;
+        }
+        const jx = (Math.random() - 0.5) * cellW * 0.3;
+        const jy = (Math.random() - 0.5) * cellH * 0.3;
+        const centerX = c * cellW + cellW / 2 + jx;
+        const centerY = r * cellH + cellH / 2 + jy;
+        const rotation = (Math.random() - 0.5) * (Math.PI / 9); // +/- 10deg
+        imageItems.push({
+          id: uid(),
+          kind: "image",
+          uri: im.uri,
+          x: centerX - iw / 2,
+          y: centerY - ih / 2,
+          width: iw,
+          height: ih,
+          rotation,
+          z: z++,
+        });
+      }
+    }
+    // Randomise stacking so overlaps look organic.
+    imageItems.sort(() => Math.random() - 0.5).forEach((it, i) => (it.z = i));
+
     const texts = items
       .filter((it) => it.kind === "text")
       .map((t, i) => ({ ...t, z: imageItems.length + i }));

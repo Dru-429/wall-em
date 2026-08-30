@@ -53,6 +53,10 @@ Pinterest-style theme (warm-cream chrome, single red #e60023 accent).
 - Editor extras (2026-06): per-image X delete on bucket tiles; Shuffle (scatter +
   ±15° rotation covering the page); Reset (clear canvas); Add-image sheet to re-add
   individual bucket images; Rotate step changed to 15° increments.
+- Editor v2 (2026-06): Shuffle rewritten to a jittered oversized grid that fully
+  covers the page (no gaps, packed-collage look). Canva-style corner resize handles
+  on the selected layer (uniform scale around center, rotation-aware); text layers
+  scale their font size on resize.
 
 ## Backlog
 - P0: `+ Widgets` section — Progress bar & Year dot-matrix widgets that render to a
